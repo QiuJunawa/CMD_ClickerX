@@ -15,8 +15,8 @@
 #include "runner.h"
 
 #define A_VERSION 5
-#define B_VERSION 1
-#define C_VERSION 3
+#define B_VERSION 2
+#define C_VERSION 0
 
 using namespace std;
 
@@ -306,7 +306,7 @@ string chooser(string node, int long__, bool disable_ansi) {
     // 3. 设置新的控制台输入模式：启用鼠标输入捕获
     // ENABLE_MOUSE_INPUT：允许捕获鼠标事件
     // ENABLE_EXTENDED_FLAGS：配合鼠标输入启用，确保事件正常上报
-    DWORD dwNewInputMode = ENABLE_MOUSE_INPUT | ENABLE_EXTENDED_FLAGS;
+    DWORD dwNewInputMode = dwOriginalInputMode | ENABLE_MOUSE_INPUT | ENABLE_EXTENDED_FLAGS;
     if (!SetConsoleMode(hStdInput, dwNewInputMode))
     {
         std::cerr << "错误：设置控制台鼠标输入模式失败！" << std::endl;
@@ -528,7 +528,7 @@ int main() {
     printf(setstr(B_VERSION).c_str());
     printf(".");
     printf(setstr(C_VERSION).c_str());
-	printf("重置版--Build Succeed at : 01/01/26 19:54\n检查ANSI支持...");
+	printf("重置版--Build Succeed at : 02/01/26 20:34\n检查ANSI支持...");
     gotoxy(0, 2); 
     Loader loader;
     gotoxy(0, 1); 
@@ -552,12 +552,29 @@ int main() {
         printf("| DEBUG模式运行\n");
         ResetConsoleColor();
     #endif
-    
+    string __tmp = "";
+    if(data[find_title("New",total_lines,data)][4] == "True")
+	{
+		__tmp = chooser("Helps1",show_long,!enable_ansi);
+		if(__tmp == "回车确认选项"){
+			__tmp = chooser("Helps2",show_long,!enable_ansi);
+			if(__tmp != "完成"){
+				return 0;
+			}else{
+				change_data("New","False");
+			} 
+		}else if(__tmp == "跳过所有？"){
+			change_data("New","False");
+		}else{
+			return 0;
+		}
+	} 
     
 	if(A_VERSION == 5 && B_VERSION == 1){
-		string __tmp = chooser("tip",show_long,!enable_ansi);
+		__tmp = chooser("tip",show_long,!enable_ansi);
 		if(__tmp == "确认"){
 			cout << "见谅！\r";
+			Sleep(100);
 		}else{
 			return 0;
 		}

@@ -451,6 +451,7 @@ SHORT ProcessConsoleMouseEvent(const MOUSE_EVENT_RECORD& mouseEvent)
 }
 // 辅助函数：恢复控制台默认输入模式（启用回显）
 void restore_console_echo_mode() {
+/*
 #ifndef _WIN32
     return;
 #endif
@@ -466,6 +467,7 @@ void restore_console_echo_mode() {
         DWORD dwNewMode = dwOldMode | ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT;
         SetConsoleMode(hConsoleInput, dwNewMode);
     }
+    //*/
 }
 
 #endif // MYTOOLS_H
