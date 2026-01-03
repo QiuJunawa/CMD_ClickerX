@@ -14,11 +14,14 @@
 #include <chrono>
 #include <mutex>
 #include <condition_variable>
+#include <random>
 #include "mytools.h"
 
 using namespace std;
 
 void cmd_left_click_once(const string& params, bool ansi);
+void cmd_left_click_loop(const string& params, bool ansi);
+void cmd_left_click_loop_random(const string& params, bool ansi);
 void cmd_exit(const string& params, bool ansi);
 void cmd_settings(const string& params, bool ansi);
 void cmd_set_list_long(const string& params, bool ansi);
@@ -47,6 +50,8 @@ struct CommandEntry {
     {"设置", cmd_settings},
     {"美化选择器线条", cmd_settings},
     {"6 单次点击", cmd_left_click_once},
+    {"6 固定间隔点击", cmd_left_click_loop},
+    {"6 随机间隔点击", cmd_left_click_loop_random},
     {"4 列表长度", cmd_set_list_long},
     {"4 热键设置", cmd_set_hot_key},
     {"awa", cmd_exit},
@@ -181,9 +186,8 @@ void cmd_left_click_once(const string& params, bool ansi) {
     int cx,cy;
     cout << "检查已通过!\n执行左键点击的位置：\nx=";
     cin >> cx;
-    cout << "\ny=";
+    cout << "y=";
     cin >> cy;
-    cout << "\n";
     // 初始化状态变量
     hotkeyTriggered = false;
     hotkeyCancelled = false;
@@ -226,11 +230,168 @@ void cmd_left_click_once(const string& params, bool ansi) {
     return;
 }
 
-void cmd_exit(const string& params, bool ansi) {
-    if (ansi) SetConsoleColor(BRIGHT_YELLOW);
-    cout << "准备退出程序..." << endl;
+void cmd_left_click_loop(const string& params, bool ansi) {
+	restore_console_echo_mode();
+    // 卸载钩子
+    uninstallHook();
+    if (ansi) SetConsoleColor(BRIGHT_GREEN);
+    cout << "执行左键连点功能" << (params.empty() ? "" : "，参数：" + params) << endl;
     if (ansi) ResetConsoleColor();
-    Sleep(1000);
+    cout << "正在检查系统环境……\n";
+    #ifndef _WIN32
+        cerr << "错误：本程序仅支持Windows系统，不支持当前操作系统！" << endl;
+        return; // 非Windows系统返回
+    #endif
+    int cx,cy,l;
+    double j;
+    cout << "检查已通过!\n执行左键点击的位置：\nx=";
+    cin >> cx;
+    cout << "y=";
+    cin >> cy;
+    cout << "循环次数=";
+    cin >> l;
+    cout << "循环间隔(s)=";
+    cin >> j;
+    // 初始化状态变量
+    hotkeyTriggered = false;
+    hotkeyCancelled = false;
+    
+    // 安装键盘钩子
+    installHook();
+    if (!hKeyboardHook) {
+        r_show_error("无法安装热键钩子！", ansi);
+        return;
+    }
+
+    cout << "等待热键触发... (F1执行, ESC取消)\n";
+    
+    // 消息循环，确保钩子能正常工作
+    MSG msg;
+    while (!hotkeyTriggered && !hotkeyCancelled) {
+        if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        }
+        this_thread::sleep_for(chrono::milliseconds(10)); // 减少CPU占用
+    }
+
+    // 卸载钩子
+    uninstallHook();
+
+    if (hotkeyCancelled) {
+        cout << "已取消操作\n";
+    }
+
+    if (hotkeyTriggered) {
+        // 移动到目标位置并点击
+        SetCursorPos(cx, cy);
+        for(int i = 0;i < l;i++){
+        	mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0);
+        	mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
+        	Sleep(j*1000);
+        	printf("#");
+        	cout << i+1 << "\r";
+		}
+        cout << "执行成功，请查看是否有效！\n";
+    }
+
+    system("pause");
+    return;
+}
+
+void cmd_left_click_loop_random(const string& params, bool ansi) {
+	restore_console_echo_mode();
+    // 卸载钩子
+    uninstallHook();
+    if (ansi) SetConsoleColor(BRIGHT_GREEN);
+    cout << "执行左键连点功能" << (params.empty() ? "" : "，参数：" + params) << endl;
+    if (ansi) ResetConsoleColor();
+    cout << "正在检查系统环境……\n";
+    #ifndef _WIN32
+        cerr << "错误：本程序仅支持Windows系统，不支持当前操作系统！" << endl;
+        return; // 非Windows系统返回
+    #endif
+    int cx,cy,l;
+    double j1,j2;
+    cout << "检查已通过!\n";
+    cout << "循环次数=";
+    cin >> l;
+    cout << "循环最小间隔(s)=";
+    cin >> j1;
+    cout << "循环最大间隔(s)=";
+    cin >> j2;
+    // 初始化状态变量
+    hotkeyTriggered = false;
+    hotkeyCancelled = false;
+    
+    // 安装键盘钩子
+    installHook();
+    if (!hKeyboardHook) {
+        r_show_error("无法安装热键钩子！", ansi);
+        return;
+    }
+    cout << "请稍等，正在生成随机数……";
+	
+    int ran_[l] = {0};
+    
+    // 步骤 1：创建随机数引擎（mt19937 推荐首选）
+    mt19937 engine;
+    
+    // 步骤 2：设置随机数种子（避免固定序列）
+    random_device rd;
+    
+    // 步骤 3：创建整数均匀分布，指定范围 [j1, j2]（闭区间，包含 j1 和 j2）
+    uniform_int_distribution<int> int_dist(j1*1000, j2*1000);
+    
+    long long seed;
+    for(int i = 0;i < l;i++){
+    	try {
+    	    // 优先使用 random_device 生成真随机种子
+    	    engine.seed(rd());
+    	} catch (...) {
+    	    // 备用方案：系统时间戳作为种子（兼容不支持 random_device 的系统）
+    	    seed = chrono::system_clock::now().time_since_epoch().count();
+    	    engine.seed(seed);
+    	}
+    	// 调用分布对象，传入引擎，生成符合要求的随机数
+        ran_[i] = int_dist(engine);
+	}
+    
+    cout << "\r等待热键触发... (F1执行, ESC取消)\n";
+    // 消息循环，确保钩子能正常工作
+    MSG msg;
+    while (!hotkeyTriggered && !hotkeyCancelled) {
+        if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        }
+        this_thread::sleep_for(chrono::milliseconds(10)); // 减少CPU占用
+    }
+
+    // 卸载钩子
+    uninstallHook();
+
+    if (hotkeyCancelled) {
+        cout << "已取消操作\n";
+    }
+
+    if (hotkeyTriggered) {
+        // 移动到目标位置并点击
+        for(int i = 0;i < l;i++){
+        	mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0);
+        	mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
+        	Sleep(ran_[i]);
+        	printf("#");
+        	cout << i+1 << "\r";
+		}
+        cout << "执行成功，请查看是否有效！\n";
+    }
+
+    system("pause");
+    return;
+}
+
+void cmd_exit(const string& params, bool ansi) {
 }
 
 void cmd_settings(const string& params, bool ansi) {

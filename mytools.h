@@ -469,5 +469,18 @@ void restore_console_echo_mode() {
     }
     //*/
 }
+int set_inspace(int num,int min,int max){
+	if(num > max){
+		num = num % min;
+		if(num < min)
+			num = min + 1;
+	}
+	else if(num < min){
+		num = (num + min) % max + min;
+		if(num > max)
+			num = max - 1;
+	}
+	return num;
+}
 
 #endif // MYTOOLS_H

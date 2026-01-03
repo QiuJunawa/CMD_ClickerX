@@ -16,7 +16,7 @@
 
 #define A_VERSION 5
 #define B_VERSION 2
-#define C_VERSION 0
+#define C_VERSION 1
 
 using namespace std;
 
@@ -306,7 +306,7 @@ string chooser(string node, int long__, bool disable_ansi) {
     // 3. 设置新的控制台输入模式：启用鼠标输入捕获
     // ENABLE_MOUSE_INPUT：允许捕获鼠标事件
     // ENABLE_EXTENDED_FLAGS：配合鼠标输入启用，确保事件正常上报
-    DWORD dwNewInputMode = dwOriginalInputMode | ENABLE_MOUSE_INPUT | ENABLE_EXTENDED_FLAGS;
+    DWORD dwNewInputMode = ENABLE_MOUSE_INPUT | ENABLE_EXTENDED_FLAGS;
     if (!SetConsoleMode(hStdInput, dwNewInputMode))
     {
         std::cerr << "错误：设置控制台鼠标输入模式失败！" << std::endl;
@@ -432,7 +432,13 @@ string chooser(string node, int long__, bool disable_ansi) {
     } else {
         clear_lines = 2 * long__ + 5;
     }
-
+    dwNewInputMode = dwOriginalInputMode | ENABLE_MOUSE_INPUT | ENABLE_EXTENDED_FLAGS;
+    if (!SetConsoleMode(hStdInput, dwNewInputMode))
+    {
+        std::cerr << "错误：设置控制台鼠标输入模式失败！" << std::endl;
+        system("pause");
+        return "#ERR";
+    }
     gotoxy(x, y);
     for (int i = 0; i < clear_lines; i++) {
         cout << string(80, ' ') << endl;
@@ -528,7 +534,7 @@ int main() {
     printf(setstr(B_VERSION).c_str());
     printf(".");
     printf(setstr(C_VERSION).c_str());
-	printf("重置版--Build Succeed at : 02/01/26 20:34\n检查ANSI支持...");
+	printf("重置版--Build Succeed at : 03/01/26 14:27\n检查ANSI支持...");
     gotoxy(0, 2); 
     Loader loader;
     gotoxy(0, 1); 
@@ -568,19 +574,7 @@ int main() {
 		}else{
 			return 0;
 		}
-	} 
-    
-	if(A_VERSION == 5 && B_VERSION == 1){
-		__tmp = chooser("tip",show_long,!enable_ansi);
-		if(__tmp == "确认"){
-			cout << "见谅！\r";
-			Sleep(100);
-		}else{
-			return 0;
-		}
 	}
-    
-
     // 隐藏光标
     SetConsoleCursorVisible(false);
 
