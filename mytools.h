@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <windows.h>
 #include <conio.h>
+#include <stack>
 
 using namespace std;
 
@@ -18,11 +19,12 @@ using namespace std;
 #endif
 //启用debug模式 
 #define _DEBUG
+#define SLEEP 0
 
 
 
 
-
+string lc_y = "",lc_n = "";
 string setstr(int num) {
     if (num == 0) {
         return "0";
@@ -322,12 +324,12 @@ void paint_list(int x, int y, int nowline, int cc, string text[], int long__, bo
         // 显示标题
         if (!disable_ansi) {
             cout << "\033[37m" << text[0] << "\033[K\033[0m" << endl;
-            cout << "\033[90m---\033[K\033[0m" << endl;
+            cout << "\033[90m" << lc_y << "\033[K\033[0m" << endl;
         } else {
             SetConsoleColor(WHITE);
             cout << text[0] << string(80 - text[0].length(), ' ') << endl;
             SetConsoleColor(GRAY);
-            cout << "---" << string(77, ' ') << endl;
+            cout << lc_y << string(77, ' ') << endl;
             ResetConsoleColor();
         }
 
@@ -346,16 +348,17 @@ void paint_list(int x, int y, int nowline, int cc, string text[], int long__, bo
                     huanchong += "- " + text[i+1] + string(80 - text[i+1].length() - 2, ' ') + "\n";
                 }
             }
+            Sleep(SLEEP);
         }
 
         // 显示底部分隔线
         if (!disable_ansi) {
             cout << huanchong;
-            cout << "\033[90m---\033[K\033[0m";
+            cout << "\033[90m" << lc_y << "\033[K\033[0m";
         } else {
             cout << huanchong;
             SetConsoleColor(GRAY);
-            cout << "---" << string(77, ' ');
+            cout << lc_y << string(77, ' ');
             ResetConsoleColor();
         }
     } 
@@ -377,9 +380,9 @@ void paint_list(int x, int y, int nowline, int cc, string text[], int long__, bo
             SetConsoleColor(GRAY);
         }
         if (nowline > long__) {
-            cout << "...";
+            cout << lc_n;
         } else {
-            cout << "---";
+            cout << lc_y;
         }
         cout << string(77, ' ');
         if (!disable_ansi) {
@@ -414,6 +417,7 @@ void paint_list(int x, int y, int nowline, int cc, string text[], int long__, bo
                     huanchong += "- " + text[i+1] + string(80 - text[i+1].length() - 2, ' ') + "\n";
                 }
             }
+            Sleep(SLEEP);
         }
 
         // 显示选项
@@ -426,9 +430,9 @@ void paint_list(int x, int y, int nowline, int cc, string text[], int long__, bo
             SetConsoleColor(GRAY);
         }
         if (nowline + long__ < cc - 1) {
-            cout << "...";
+            cout << lc_n;
         } else {
-            cout << "---";
+            cout << lc_y;
         }
         cout << string(77, ' ');
         if (!disable_ansi) {
@@ -482,5 +486,171 @@ int set_inspace(int num,int min,int max){
 	}
 	return num;
 }
+// 辅助函数1：判断运算符优先级
+int GetPriority(char op) {
+    if (op == '+' || op == '-') return 1;
+    if (op == '*' || op == '/') return 2;
+    return 0;
+}
+
+// 辅助函数2：执行单次运算
+double Calculate(double a, double b, char op) {
+    switch (op) {
+        case '+': return a + b;
+        case '-': return a - b;
+        case '*': return a * b;
+        case '/': return b != 0 ? a / b : 0; // 避免除零错误
+        default: return 0;
+    }
+}
+
+// 辅助函数3：计算替换后的纯表达式（无~符号）
+double CalculateExpr(const std::string& expr) {
+    std::stack<double> numStack;  // 数字栈
+    std::stack<char> opStack;     // 运算符栈
+    double num = 0.0;
+    int i = 0;
+
+    while (i < expr.size()) {
+        // 跳过空格
+        if (isspace(expr[i])) { i++; continue; }
+
+        // 解析数字（支持整数/小数）
+        if (isdigit(expr[i]) || expr[i] == '.') {
+            num = 0.0;
+            // 整数部分
+            while (i < expr.size() && isdigit(expr[i])) {
+                num = num * 10 + (expr[i] - '0');
+                i++;
+            }
+            // 小数部分
+            if (i < expr.size() && expr[i] == '.') {
+                i++;
+                double decimal = 0.1;
+                while (i < expr.size() && isdigit(expr[i])) {
+                    num += (expr[i] - '0') * decimal;
+                    decimal *= 0.1;
+                    i++;
+                }
+            }
+            numStack.push(num);
+        }
+        // 左括号：直接入栈
+        else if (expr[i] == '(') {
+            opStack.push(expr[i]);
+            i++;
+        }
+        // 右括号：计算到左括号
+        else if (expr[i] == ')') {
+            while (!opStack.empty() && opStack.top() != '(') {
+                double b = numStack.top(); numStack.pop();
+                double a = numStack.top(); numStack.pop();
+                char op = opStack.top(); opStack.pop();
+                numStack.push(Calculate(a, b, op));
+            }
+            opStack.pop(); // 弹出左括号
+            i++;
+        }
+        // 运算符：按优先级处理
+        else if (expr[i] == '+' || expr[i] == '-' || expr[i] == '*' || expr[i] == '/') {
+            while (!opStack.empty() && GetPriority(opStack.top()) >= GetPriority(expr[i])) {
+                double b = numStack.top(); numStack.pop();
+                double a = numStack.top(); numStack.pop();
+                char op = opStack.top(); opStack.pop();
+                numStack.push(Calculate(a, b, op));
+            }
+            opStack.push(expr[i]);
+            i++;
+        }
+        else {
+            std::cerr << "表达式含非法字符：" << expr[i] << std::endl;
+            return 0;
+        }
+    }
+
+    // 处理剩余运算符
+    while (!opStack.empty()) {
+        double b = numStack.top(); numStack.pop();
+        double a = numStack.top(); numStack.pop();
+        char op = opStack.top(); opStack.pop();
+        numStack.push(Calculate(a, b, op));
+    }
+
+    return numStack.empty() ? 0 : numStack.top();
+}
+
+// 核心自定义函数：ssmath（替换~为tmp并计算表达式）
+auto ssmath(std::string script, double tmp) -> double {
+    // 步骤1：将tmp转换为字符串（支持小数，比如tmp=10.5则转为"10.5"）
+    std::ostringstream oss;
+    oss << tmp;
+    std::string tmpStr = oss.str();
+
+    // 步骤2：遍历script，替换所有~为tmpStr
+    size_t pos = 0;
+    while ((pos = script.find('~', pos)) != std::string::npos) {
+        script.replace(pos, 1, tmpStr); // 替换单个~为tmp的字符串
+        pos += tmpStr.length(); // 跳过替换后的字符，避免重复匹配
+    }
+
+    // 步骤3：计算替换后的表达式
+    return CalculateExpr(script);
+}
+// 函数1：移动鼠标到指定屏幕坐标(x,y)
+// 参数：x - 屏幕水平坐标（像素），y - 屏幕垂直坐标（像素）
+void m_gotoxy(int x, int y)
+{
+    // SetCursorPos：设置鼠标光标位置（绝对屏幕坐标）
+    // 返回值为BOOL，true表示成功，false表示失败
+    BOOL ret = SetCursorPos(x, y);
+    if (!ret)
+    {
+        std::cerr << "错误：鼠标移动失败！坐标(" << x << "," << y << ")" << std::endl;
+    }
+}
+
+// 函数2：获取当前鼠标位置，通过引用参数返回x、y坐标
+// 参数：x - 用于接收水平坐标的引用，y - 用于接收垂直坐标的引用
+void m_getxy(int& x, int& y)
+{
+    POINT pt; // Windows定义的点结构体，包含x、y成员
+    // GetCursorPos：获取鼠标当前绝对坐标，存入POINT结构体
+    BOOL ret = GetCursorPos(&pt);
+    if (ret)
+    {
+        x = pt.x; // 将获取的x坐标赋值给引用参数
+        y = pt.y; // 将获取的y坐标赋值给引用参数
+    }
+    else
+    {
+        std::cerr << "错误：获取鼠标位置失败！" << std::endl;
+        x = -1; // 失败时返回-1标识
+        y = -1;
+    }
+}
+//限制询问器，限制只当答案符合member中的其中一项时才返回或返回默认值 (,分割各个答案，*通配符未支持)
+string ask_only(string question,string members,bool will_loop,bool will_endl){
+	cout << question;
+	if(will_endl)
+		cout << endl;
+	string ans = "";
+loop_ask:
+	cin >> ans;
+	for(int i = 0;i <= countchar(members,',');i++){
+		if(ans == fag(members,',',i)){
+			return ans;
+		}
+	}
+	if(will_loop){
+		gotoxy(0,getxy().Y - 1);
+		cout << "不合规，请重新输入！\r";
+		Sleep(1000);
+		cout << "                    \r";
+		goto loop_ask;
+	}else{
+		return fag(members,',',0);
+	}
+}
+
 
 #endif // MYTOOLS_H

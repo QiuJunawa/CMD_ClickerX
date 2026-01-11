@@ -347,6 +347,187 @@ string chooser(string node, int long__, bool disable_ansi) {
                             tmp = ProcessConsoleMouseEvent(inputRecord[i].Event.MouseEvent);
                             if(tmp > 0 && nowline > 0){
                             	nowline--;
+                           		change = true;
+							}else if(tmp < 0 && nowline < cc - 1){
+                            	nowline++;
+                           		change = true;
+							}
+							break;
+                        // 键盘事件
+                        case KEY_EVENT:
+                            if (inputRecord[i].Event.KeyEvent.bKeyDown)
+                            {
+                            	// 提取按键字符，支持大写A（0x41）和小写a（0x61）
+                                WORD keyChar = inputRecord[i].Event.KeyEvent.wVirtualKeyCode;
+								// 上下键事件同理
+								change = false;
+								if (keyChar == VK_UP && nowline > 0) {
+								    nowline--;
+									change = true;
+								}
+								else if (keyChar == VK_DOWN && nowline < cc - 1) {
+								    nowline++;
+									change = true;
+								}
+								else if (keyChar == VK_RETURN) {
+									is_choiced = 1; 
+								}
+								else if (keyChar == VK_ESCAPE) {
+									nowline = -1;
+									is_choiced = 1; 
+								}
+                            }
+                            break;
+
+                        // 其他事件（忽略）
+                        default:
+                            break;
+                    }
+                	Sleep(1);
+                }
+            }
+        }
+        // 短暂延时，降低CPU占用
+        Sleep(10);
+	}
+	
+    // 原有清理逻辑保持不变
+    int clear_lines = 0;
+    if (cc <= 2 * long__ + 1 || long__ < 0) {
+        clear_lines = cc + 4;
+    } else {
+        clear_lines = 2 * long__ + 5;
+    }
+    dwNewInputMode = dwOriginalInputMode | ENABLE_MOUSE_INPUT | ENABLE_EXTENDED_FLAGS;
+    if (!SetConsoleMode(hStdInput, dwNewInputMode))
+    {
+        std::cerr << "错误：设置控制台鼠标输入模式失败！" << std::endl;
+        system("pause");
+        return "#ERR";
+    }
+    gotoxy(x, y);
+    for (int i = 0; i < clear_lines; i++) {
+        cout << string(79, ' ') << endl;
+    }
+
+    gotoxy(original_pos.X, original_pos.Y);
+    SetConsoleCursorVisible(true);
+
+    if (nowline == -1) {
+        return "#ESC";
+    }
+    if (nowline >= 0 && nowline < cc) {
+        if (text[nowline + 1] == "#ESC") {
+            return "#ESC";
+        }
+        return text[nowline + 1];
+    }
+    return "#ERR";
+}
+// 未完工的选择器，node是名称，long__是扩展长度，able_ansi是ANSI支持（反）
+/*
+string inset_chooser(string node, int long__, bool disable_ansi) {
+    int px = find_title(node, total_lines, data);
+    if (px == -1) {
+        show_error("未找到菜单：" + node, !disable_ansi);
+        return "#ERR";
+    }
+
+    int cc = countchar(data[px][4], ',');
+    if (cc <= 0) {
+        show_error("菜单 " + node + " 无有效选项", !disable_ansi);
+        return "#ERR";
+    }
+
+    chooser_row = px;
+    string text[cc+3];
+    int x = setnum(data[px][2]);
+    int y = setnum(data[px][3]);
+
+    // 检查坐标有效性
+    if (x == -1 || y == -1) {
+        show_error("菜单 " + node + " 坐标配置无效", !disable_ansi);
+        return "#ERR";
+    }
+
+    COORD original_pos = getxy();
+    
+    // 分割选项
+    for (int i = 0; i <= cc; i++) {
+        text[i] = fag(data[px][4], ',', i);
+        // 去除前后空格
+        text[i].erase(0, text[i].find_first_not_of(" \t"));
+        text[i].erase(text[i].find_last_not_of(" \t") + 1);
+    }
+    
+    string huanchong = "";
+    bool change = true;
+    int nowline = 0;
+
+    // 隐藏光标
+    SetConsoleCursorVisible(false);
+	// 1. 获取标准输入句柄（控制台输入）
+    HANDLE hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+    if (hStdInput == INVALID_HANDLE_VALUE)
+    {
+        std::cerr << "错误：获取控制台输入句柄失败！" << std::endl;
+        system("pause");
+        return "#ERR";
+    }
+
+    // 2. 保存原始控制台输入模式（用于程序退出时恢复）
+    DWORD dwOriginalInputMode = 0;
+    if (!GetConsoleMode(hStdInput, &dwOriginalInputMode))
+    {
+        std::cerr << "错误：获取控制台输入模式失败！" << std::endl;
+        system("pause");
+        return "#ERR";
+    }
+
+    // 3. 设置新的控制台输入模式：启用鼠标输入捕获
+    // ENABLE_MOUSE_INPUT：允许捕获鼠标事件
+    // ENABLE_EXTENDED_FLAGS：配合鼠标输入启用，确保事件正常上报
+    DWORD dwNewInputMode = ENABLE_MOUSE_INPUT | ENABLE_EXTENDED_FLAGS;
+    if (!SetConsoleMode(hStdInput, dwNewInputMode))
+    {
+        std::cerr << "错误：设置控制台鼠标输入模式失败！" << std::endl;
+        system("pause");
+        return "#ERR";
+    }
+    // 4. 提示信息
+    // 5. 循环处理控制台输入事件（核心：捕获鼠标滚轮）
+    INPUT_RECORD inputRecord[128]; // 存储输入事件缓冲区
+    DWORD dwEventsRead = 0;         // 实际读取的事件数
+    bool is_choiced = 0;
+    
+    while (!is_choiced) {
+        huanchong = "";
+        is_choiced = 0;
+        gotoxy(x, y);
+        int tmp = 0;
+        if (change) {
+        	paint_list(x, y, nowline, cc, text, long__, disable_ansi, huanchong);
+        }
+        change = false;
+        
+        // 非阻塞读取控制台输入事件
+        if (PeekConsoleInput(hStdInput, inputRecord, 128, &dwEventsRead))
+        {
+            if (dwEventsRead > 0)
+            {
+                // 读取并处理所有待处理事件
+                ReadConsoleInput(hStdInput, inputRecord, 128, &dwEventsRead);
+
+                for (DWORD i = 0; i < dwEventsRead; i++)
+                {
+                    // 区分事件类型
+                    switch (inputRecord[i].EventType)
+                    {
+                        // 鼠标事件（包含滚轮事件）
+                        case MOUSE_EVENT:
+                            tmp = ProcessConsoleMouseEvent(inputRecord[i].Event.MouseEvent);
+                            if(tmp > 0 && nowline > 0){
+                            	nowline--;
 							}else if(tmp < 0 && nowline < cc - 1){
                             	nowline++;
 							}
@@ -356,7 +537,6 @@ string chooser(string node, int long__, bool disable_ansi) {
                         case KEY_EVENT:
                             if (inputRecord[i].Event.KeyEvent.bKeyDown)
                             {
-                            	// 提取按键字符，支持大写A（0x41）和小写a（0x61）
                                 WORD keyChar = inputRecord[i].Event.KeyEvent.wVirtualKeyCode;
 								// 上下键事件同理
 								if (keyChar == VK_UP && nowline > 0) {
@@ -384,45 +564,7 @@ string chooser(string node, int long__, bool disable_ansi) {
                 }
             }
         }
-
-        // 短暂延时，降低CPU占用
         Sleep(10);
-        /*
-        // ========== 关键修改4：非阻塞检测键盘输入 ==========
-        if (_kbhit()) {
-            int ch = _getch();
-            if (ch == 0 || ch == 224) {
-                ch = _getch();
-                switch (ch) {
-                    case 72: // 上箭头
-                        if (nowline > 0) {
-                            nowline--;
-                            change = true;
-                        }
-                        break;
-                    case 80: // 下箭头
-                        if (nowline < cc - 1) {
-                            nowline++;
-                            change = true;
-                        }
-                        break;
-                }
-            } else if (ch == 13) { // 回车
-                break;
-            } else if (ch == 27) { // ESC
-                nowline = -1;
-                break;
-            }
-        } else {
-            // 无输入时短暂休眠，降低CPU占用
-            Sleep(10);
-        }
-    }
-
-    // ========== 关键修改5：恢复输入模式 ==========
-    setConsoleInputMode(false);
-
-	//*/
 	}
 	
     // 原有清理逻辑保持不变
@@ -458,7 +600,7 @@ string chooser(string node, int long__, bool disable_ansi) {
     }
     return "#ERR";
 }
-
+//*/
 
 
 bool cover_up() {
@@ -516,7 +658,7 @@ int main() {
     set_ftl("数据存储1", "6666", "#ESC"); 
     set_ftl("初始选项", "退出程序", "#ESC"); 
     set_ftl("初始选项", "设置", "设置"); 
-    set_ftl("设置", "美化选择器线条", "设置线条样式"); 
+    set_ftl("设置", "设置分隔线样式", "设置线条样式"); 
     set_ftl("初始选项", "左键连点", "左键连点"); 
     set_ftl("设置", "返回", "#ESC");  
     set_ftl("设置线条样式", "返回", "#ESC");  
@@ -538,7 +680,10 @@ int main() {
     gotoxy(0, 2); 
     Loader loader;
     gotoxy(0, 1); 
+    string __tmp = "";
 	show_long = setnum(data[find_title("这是数据存储-showlong",total_lines,data)][4]);
+    lc_y = fag(data[find_title("line_consoles",total_lines,data)][4],'/',0);
+    lc_n = fag(data[find_title("line_consoles",total_lines,data)][4],'/',1);
     // 检测并启用ANSI
     if (!supportsAnsiEscapes()) {
         enableAnsiOnWindows();
@@ -546,8 +691,14 @@ int main() {
             SetConsoleColor(BRIGHT_RED);
             std::cout << "\r无法启用 ANSI 转义码支持\n" << std::endl;
             ResetConsoleColor();
-            Sleep(3000);
             enable_ansi = false;
+            loop_back:
+				__tmp = chooser("tip2",show_long,!enable_ansi);
+				if(__tmp == "还是等修复吧"){
+					return 1;
+				}else if(__tmp == "啊哦，看来你的设备并不支持ANSI，视觉体验会变差一点" || __tmp == "此外，可能会遇到性能下降"){
+					goto loop_back;
+				}
         }
     }
 
@@ -558,18 +709,24 @@ int main() {
         printf("| DEBUG模式运行\n");
         ResetConsoleColor();
     #endif
-    string __tmp = "";
     if(data[find_title("New",total_lines,data)][4] == "True")
 	{
 		__tmp = chooser("Helps1",show_long,!enable_ansi);
 		if(__tmp == "回车确认选项"){
 			__tmp = chooser("Helps2",show_long,!enable_ansi);
-			if(__tmp != "完成"){
+			if(__tmp != "下一步" && __tmp != "#ESC"){
 				return 0;
-			}else{
+			}else if(__tmp == "下一步"){
+				__tmp = chooser("Helps3",show_long,!enable_ansi);
+				if(__tmp != "#ESC"){
+					return 0;
+				}else{
+					change_data("New","False");
+				} 
+			}else if(__tmp == "#ESC"){
 				change_data("New","False");
-			} 
-		}else if(__tmp == "跳过所有？"){
+			}
+		}else if(__tmp == "跳过所有？" || __tmp == "#ESC"){
 			change_data("New","False");
 		}else{
 			return 0;
@@ -588,7 +745,7 @@ int main() {
     while (true) {
         gotoxy(0, 1);
         // 显示当前路径
-        if (!enable_ansi) {
+        if (enable_ansi) {
             cout << "\033[96m"; // 亮青色
         } else {
             SetConsoleColor(BRIGHT_CYAN);
@@ -599,7 +756,7 @@ int main() {
             if (i < path_index) cout << " > ";
         }
         cout << string(80 - (10 + path_index * 3), ' ') << endl << endl;
-        if (!enable_ansi) {
+        if (enable_ansi) {
             cout << "\033[0m";
         } else {
             ResetConsoleColor();

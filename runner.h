@@ -23,7 +23,7 @@ void cmd_left_click_once(const string& params, bool ansi);
 void cmd_left_click_loop(const string& params, bool ansi);
 void cmd_left_click_loop_random(const string& params, bool ansi);
 void cmd_exit(const string& params, bool ansi);
-void cmd_settings(const string& params, bool ansi);
+void cmd_lc_settings(const string& params, bool ansi);
 void cmd_set_list_long(const string& params, bool ansi);
 void cmd_set_hot_key(const string& params, bool ansi);
 
@@ -47,15 +47,15 @@ struct CommandEntry {
 } command_table[] = {
     //{"左键连点", cmd_left_click},
     {"退出程序", cmd_exit},
-    {"设置", cmd_settings},
-    {"美化选择器线条", cmd_settings},
     {"6 单次点击", cmd_left_click_once},
     {"6 固定间隔点击", cmd_left_click_loop},
     {"6 随机间隔点击", cmd_left_click_loop_random},
     {"4 列表长度", cmd_set_list_long},
     {"4 热键设置", cmd_set_hot_key},
     {"awa", cmd_exit},
-    {"到底啦/我还有", cmd_settings}
+    {"5 ---/...", cmd_lc_settings}, 
+    {"5 ===/---", cmd_lc_settings}, 
+    {"5 +++/---", cmd_lc_settings}, 
 };
 
 void change_data(string index, string data_cd) {
@@ -138,7 +138,7 @@ void execute_command(const string& cmd, bool ansi) {
 	// DEBUG模式提示
     #ifdef DEBUG
         SetConsoleColor(BRIGHT_GREEN);
-        cout << "执行：" << cmd; 
+        cout << "执行：" << cmd << "          \r"; 
         ResetConsoleColor();
         Sleep(1000);
     #endif
@@ -148,14 +148,21 @@ void execute_command(const string& cmd, bool ansi) {
         const auto& entry = command_table[i];
         // 只匹配以命令名开头的情况
         if (cmd.substr(0, entry.name.length()) == entry.name) {        	
-            string params = cmd.substr(entry.name.length());
+            string params = fag(cmd,' ',1);
             // 去除参数前后空格
-            params.erase(0, params.find_first_not_of(" \t"));
-            params.erase(params.find_last_not_of(" \t") + 1);
+            //params.erase(0, params.find_first_not_of(" \t"));
+            //params.erase(params.find_last_not_of(" \t") + 1);
+			// DEBUG模式提示
+    		#ifdef DEBUG
+        		SetConsoleColor(BRIGHT_GREEN);
+        		cout << "传入：" << params << "          \r"; 
+        		ResetConsoleColor();
+        		Sleep(1000);
+    		#endif
             entry.func(params, ansi);
             
             // 命令执行完成后清除显示区
-            clearDisplayArea(3,15);
+            clearDisplayArea(3,18);
             return;
         }
     }
@@ -242,12 +249,16 @@ void cmd_left_click_loop(const string& params, bool ansi) {
         cerr << "错误：本程序仅支持Windows系统，不支持当前操作系统！" << endl;
         return; // 非Windows系统返回
     #endif
-    int cx,cy,l;
+    int l;
+    string cx = "",cy = "";
     double j;
-    cout << "检查已通过!\n执行左键点击的位置：\nx=";
-    cin >> cx;
-    cout << "y=";
-    cin >> cy;
+    cout << "检查已通过!\n当前鼠标坐标可用~代替\n";
+    bool al = 0;
+    al = ask_only("应用到每一次循环？(Y/N)","Y,N",1,1)=="Y"?1:0;
+	cout << "x=";
+	cin >> cx;
+	cout << "y=";
+	cin >> cy;
     cout << "循环次数=";
     cin >> l;
     cout << "循环间隔(s)=";
@@ -283,15 +294,24 @@ void cmd_left_click_loop(const string& params, bool ansi) {
     }
 
     if (hotkeyTriggered) {
+    	int mx,my;
+    	m_getxy(mx,my);
+		int m1x = ssmath(cx,mx),m1y = ssmath(cy,my);
+    	m_gotoxy(m1x,m1y);
         // 移动到目标位置并点击
-        SetCursorPos(cx, cy);
         for(int i = 0;i < l;i++){
         	mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0);
         	mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
         	Sleep(j*1000);
         	printf("#");
         	cout << i+1 << "\r";
+        	if(al){
+    			m_getxy(mx,my);
+    			m1x = ssmath(cx,mx),m1y = ssmath(cy,my);
+        		m_gotoxy(m1x,m1y);
+			}
 		}
+		m_gotoxy(mx,my);
         cout << "执行成功，请查看是否有效！\n";
     }
 
@@ -311,9 +331,16 @@ void cmd_left_click_loop_random(const string& params, bool ansi) {
         cerr << "错误：本程序仅支持Windows系统，不支持当前操作系统！" << endl;
         return; // 非Windows系统返回
     #endif
-    int cx,cy,l;
+    int l;
+    string cx = "",cy = "";
     double j1,j2;
-    cout << "检查已通过!\n";
+    cout << "检查已通过!\n当前鼠标坐标可用~代替\n";
+    bool al = 0;
+    al = ask_only("应用到每一次循环？(Y/N)","Y,N",1,1)=="Y"?1:0;
+	cout << "x=";
+	cin >> cx;
+	cout << "y=";
+	cin >> cy;
     cout << "循环次数=";
     cin >> l;
     cout << "循环最小间隔(s)=";
@@ -376,14 +403,24 @@ void cmd_left_click_loop_random(const string& params, bool ansi) {
     }
 
     if (hotkeyTriggered) {
+    	int mx,my;
+    	m_getxy(mx,my);
+		int m1x = ssmath(cx,mx),m1y = ssmath(cy,my);
+    	m_gotoxy(m1x,m1y);
         // 移动到目标位置并点击
         for(int i = 0;i < l;i++){
         	mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0);
         	mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
         	Sleep(ran_[i]);
         	printf("#");
-        	cout << i+1 << "\r";
+        	cout << i+1 << " - " << ran_[i] << "ms\r";
+        	if(al){
+    			m_getxy(mx,my);
+    			m1x = ssmath(cx,mx),m1y = ssmath(cy,my);
+        		m_gotoxy(m1x,m1y);
+			}
 		}
+		m_gotoxy(mx,my);
         cout << "执行成功，请查看是否有效！\n";
     }
 
@@ -392,17 +429,6 @@ void cmd_left_click_loop_random(const string& params, bool ansi) {
 }
 
 void cmd_exit(const string& params, bool ansi) {
-}
-
-void cmd_settings(const string& params, bool ansi) {
-    if (ansi) SetConsoleColor(BRIGHT_BLUE);
-    cout << "进入设置菜单" << (params.empty() ? "" : "，参数：" + params) << endl;
-    if (ansi) ResetConsoleColor();
-    
-    // 这里可以添加设置菜单的初始化代码
-    // ...
-    
-    Sleep(1000);
 }
 void cmd_set_list_long(const string& params, bool ansi) {
 	cout << "输入想要的列表长度："; 
@@ -422,6 +448,14 @@ void cmd_set_hot_key(const string& params, bool ansi){
 	{
 		change_data("更改热键",setstr(a));		
 	}
+}
+void cmd_lc_settings(const string& params, bool ansi){
+	cout << params << "\n";
+	change_data("line_consoles",params);
+    lc_y = fag(params,'/',0);
+    lc_n = fag(params,'/',1);
+    cout << data[find_title("line_consoles",total_lines,data)][4];
+	system("pause");
 }
 
 #endif // RUNNER_H
